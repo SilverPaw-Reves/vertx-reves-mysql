@@ -14,6 +14,7 @@
         <vertx.version>4.0.0.CR1</vertx.version>
         <mysql-connector.version>8.0.18</mysql-connector.version>
         <lombok.version>1.18.16</lombok.version>
+        <guava.version>30.1-jre</guava.version>
     </properties>
 
     <dependencyManagement>
@@ -41,6 +42,11 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-mysql-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

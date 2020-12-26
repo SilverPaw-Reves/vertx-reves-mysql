@@ -1,10 +1,8 @@
-import com.bobo.reves.mysql.MysqlWrapper;
-import com.bobo.reves.mysql.Page;
 import io.vertx.core.Vertx;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 
 /**
  * 测试工具类
@@ -23,11 +21,14 @@ public class TestJdbcClient {
                 .setPassword("123456");
 
 
-        MysqlWrapper mysqlWrapper = new MysqlWrapper(Vertx.vertx(), mySQLConnectOptions, new PoolOptions());
-        ArrayList<Object> objects = new ArrayList<>();
-        objects.add("王五2");
-        mysqlWrapper.pagination(objects, "select * from user_info where user_name = ?", new Page(1, 2))
-                .onFailure(Throwable::printStackTrace)
-                .onSuccess(s -> System.out.println(s.toString()));
+//        MysqlWrapper mysqlWrapper = new MysqlWrapper(Vertx.vertx(), mySQLConnectOptions, new PoolOptions());
+//        ArrayList<Object> objects = new ArrayList<>();
+//        objects.add("王五2");
+//        mysqlWrapper.pagination(objects, "select * from user_info where user_name = ?", new Page(1, 2))
+//                .onFailure(Throwable::printStackTrace)
+//                .onSuccess(s -> System.out.println(s.toString()));
+        UserWrapper userWrapper = new UserWrapper(Vertx.vertx(), mySQLConnectOptions, new PoolOptions());
+        userWrapper.insert(new UserInfo().setUserName("ins").setUserAge(22).setCreateTime(LocalDateTime.now()))
+                .onSuccess(s-> System.out.println(s.toString()));
     }
 }
