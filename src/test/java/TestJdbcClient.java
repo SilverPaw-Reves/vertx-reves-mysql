@@ -1,4 +1,5 @@
 import com.bobo.reves.mysql.MysqlWrapper;
+import com.bobo.reves.mysql.Page;
 import io.vertx.core.Vertx;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
@@ -23,7 +24,9 @@ public class TestJdbcClient {
 
 
         MysqlWrapper mysqlWrapper = new MysqlWrapper(Vertx.vertx(), mySQLConnectOptions, new PoolOptions());
-        mysqlWrapper.queryOne(new ArrayList<>(), "select * from user_info")
+        ArrayList<Object> objects = new ArrayList<>();
+        objects.add("王五2");
+        mysqlWrapper.pagination(objects, "select * from user_info where user_name = ?", new Page(1, 2))
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(s -> System.out.println(s.toString()));
     }

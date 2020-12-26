@@ -11,6 +11,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface MySQLColumnName {
-     String value();
-
+    String value();
 }
