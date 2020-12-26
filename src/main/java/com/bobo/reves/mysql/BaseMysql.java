@@ -4,8 +4,10 @@ import com.bobo.reves.mysql.annotation.MySQLColumnName;
 import com.bobo.reves.mysql.annotation.MySQLExclude;
 import com.bobo.reves.mysql.annotation.MySQLId;
 import com.bobo.reves.mysql.annotation.MySQLTableName;
+import com.bobo.reves.mysql.utils.MyCompositeFuture;
 import com.bobo.reves.mysql.utils.StringUtils;
 import com.google.common.base.CaseFormat;
+import com.google.common.reflect.TypeToken;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -13,10 +15,13 @@ import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * mysql 基础类
@@ -107,4 +112,91 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
                 });
         return promise.future();
     }
+
+    /**
+     * 批量 插入
+     *
+     * @param tList 批量插入对象
+     * @return 返回执行结果,
+     */
+    public Future<BatchExecutionResults<T>> insert(List<T> tList) {
+        Promise<BatchExecutionResults<T>> promise = Promise.promise();
+        BatchExecutionResults<T> tBatchExecutionResults = new BatchExecutionResults<>();
+        ArrayList<Future<T>> futures = new ArrayList<>();
+        tList.forEach(t -> futures.add(this.insert(t).onFailure(f -> {
+            tBatchExecutionResults.getFailedList().add(t);
+            tBatchExecutionResults.getException().add(f);
+        }).onSuccess(s -> tBatchExecutionResults.getSuccessList().add(s))));
+        MyCompositeFuture.join(futures).onComplete(s -> promise.complete(tBatchExecutionResults));
+        return promise.future();
+    }
+
+    /**
+     * 根据主键删除
+     *
+     * @param t
+     * @return
+     */
+    public Future<Integer> delete(T t) {
+        Class<?> aClass = t.getClass();
+        Future<Integer> future = null;
+        for (Field declaredField : aClass.getDeclaredFields()) {
+            MySQLId mySQLID = declaredField.getAnnotation(MySQLId.class);
+            if (mySQLID != null) {
+                try {
+                    future = deleteById(declaredField.get(t));
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                    future = Future.failedFuture(e);
+                }
+            }
+        }
+        if (future == null) {
+            return Future.failedFuture("主键不存在");
+        } else {
+            return future;
+        }
+    }
+
+    /**
+     * 删除函数
+     */
+    public Future<Integer> deleteById(Object object) {
+        Type genericSuperclass = this.getClass().getGenericSuperclass();
+        ParameterizedType pt = (ParameterizedType) genericSuperclass;
+        Type actualType = pt.getActualTypeArguments()[0];
+        Class<?> clazz = TypeToken.of(actualType).getRawType();
+        MySQLTableName mySQLTableName = clazz.getAnnotation(MySQLTableName.class);
+        if (mySQLTableName == null || StringUtils.isEmpty(mySQLTableName.value())) {
+            return Future.failedFuture("Unknown table name , use MySQLTableName annotation");
+        }
+        String primary = "";
+        for (Field field : clazz.getDeclaredFields()) {
+            MySQLId mySQLID = field.getAnnotation(MySQLId.class);
+            if (mySQLID != null) {
+                MySQLColumnName mySQLColumnName = field.getAnnotation(MySQLColumnName.class);
+                if (mySQLColumnName != null && !StringUtils.isEmpty(mySQLColumnName.value())) {
+                    primary = mySQLColumnName.value();
+                } else {
+                    primary = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
+                }
+            }
+        }
+        if (StringUtils.isEmpty(primary)) {
+            return Future.failedFuture("PRIMARY Undefined , Use MySQLID annotation ");
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("delete from ").append(mySQLTableName.value())
+                .append(" where ").append(primary).append(" = ?");
+        return super.executeNoResult(object, stringBuilder.toString());
+    }
+
+    public Future<Integer> update(T t) {
+        
+
+        return null;
+
+    }
+
+
 }
