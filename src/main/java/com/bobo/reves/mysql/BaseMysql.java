@@ -11,6 +11,8 @@ import com.google.common.reflect.TypeToken;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
 
@@ -196,7 +198,25 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 		return super.executeNoResult(object, stringBuilder);
 	}
 
+	/**
+	 * 根据id更新对象,setNull is false
+	 *
+	 * @param t 实体对象
+	 * @return 返回影响的行数
+	 */
 	public Future<Integer> update(T t) {
+		return update(t, false);
+	}
+
+	/**
+	 * 根据id更新对象
+	 *
+	 * @param t       实体对象
+	 * @param setNull true 如果更新参数属性为null,更新为null
+	 *                false  如果更新参数属性为null,不更新此字段
+	 * @return 返回影响的行数
+	 */
+	public Future<Integer> update(T t, boolean setNull) {
 		Class<?> aClass = t.getClass();
 		MySQLTableName mySQLTableName = aClass.getAnnotation(MySQLTableName.class);
 		if (mySQLTableName == null || StringUtils.isEmpty(mySQLTableName.value())) {
@@ -230,10 +250,30 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 			e.printStackTrace();
 			return Future.failedFuture(e);
 		}
-		return update(t, t2);
+		return update(t, t2, setNull);
 	}
 
+	/**
+	 * 更新数据  setNull is false
+	 *
+	 * @param t  更新参数
+	 * @param t2 条件参数
+	 * @return * @return 返回受影响的行数
+	 */
 	public Future<Integer> update(T t, T t2) {
+		return update(t, t2, false);
+	}
+
+	/**
+	 * 更新数据
+	 *
+	 * @param t       更新参数
+	 * @param t2      条件参数
+	 * @param setNull true 如果更新参数属性为null,更新为null
+	 *                false  如果更新参数属性为null,不更新此字段
+	 * @return 返回受影响的行数
+	 */
+	public Future<Integer> update(T t, T t2, boolean setNull) {
 		Class<?> aClass = t.getClass();
 		MySQLTableName mySQLTableName = aClass.getAnnotation(MySQLTableName.class);
 		if (mySQLTableName == null || StringUtils.isEmpty(mySQLTableName.value())) {
@@ -255,13 +295,16 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 					field.setAccessible(true);
 					Object o = field.get(t);
 					if (o == null) {
-						continue;
-					}
-					sqlBuilder.append(field.getName()).append(" = ? ,");
-					if (o instanceof LocalDate || o instanceof LocalTime || o instanceof LocalDateTime) {
-						params.add(o.toString());
+						if (setNull) {
+							sqlBuilder.append(field.getName()).append(" = null ,");
+						}
 					} else {
-						params.add(o);
+						sqlBuilder.append(field.getName()).append(" = ? ,");
+						if (o instanceof LocalDate || o instanceof LocalTime || o instanceof LocalDateTime) {
+							params.add(o.toString());
+						} else {
+							params.add(o);
+						}
 					}
 				}
 				if (t2 != null) {
@@ -291,6 +334,57 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 		}
 		params.addAll(whereParams);
 		return super.executeNoResult(params, sqlBuilder.toString());
+	}
+
+	public Future<T> getById(Object o) {
+		Promise<T> promise = Promise.promise();
+		Type genericSuperclass = this.getClass().getGenericSuperclass();
+		ParameterizedType pt = (ParameterizedType) genericSuperclass;
+		Type actualType = pt.getActualTypeArguments()[0];
+		//T class
+		Class<?> clazz = TypeToken.of(actualType).getRawType();
+		MySQLTableName mySQLTableName = clazz.getAnnotation(MySQLTableName.class);
+		if (mySQLTableName == null || StringUtils.isEmpty(mySQLTableName.value())) {
+			return Future.failedFuture("Unknown table name , use MySQLTableName annotation");
+		}
+		String primary = "";
+		StringBuilder columnNames = new StringBuilder();
+		for (Field field : clazz.getDeclaredFields()) {
+			if (StringUtils.isEmpty(primary)) {
+				MySQLId mySQLID = field.getAnnotation(MySQLId.class);
+				if (mySQLID != null) {
+					MySQLColumnName mySQLColumnName = field.getAnnotation(MySQLColumnName.class);
+					if (mySQLColumnName != null && !StringUtils.isEmpty(mySQLColumnName.value())) {
+						primary = mySQLColumnName.value();
+					} else {
+						primary = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
+					}
+				}
+			}
+			MySQLExclude annotation = field.getAnnotation(MySQLExclude.class);
+			if (annotation == null) {
+				MySQLColumnName mySQLColumnName = field.getAnnotation(MySQLColumnName.class);
+				if (mySQLColumnName != null && !StringUtils.isEmpty(mySQLColumnName.value())) {
+					columnNames.append(mySQLColumnName.value()).append(",");
+				} else {
+					columnNames.append(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName())).append(",");
+				}
+			}
+		}
+		columnNames.deleteCharAt(columnNames.length() - 1);
+		if (StringUtils.isEmpty(primary)) {
+			return Future.failedFuture("PRIMARY Undefined , Use MySQLID annotation ");
+		}
+		StringBuilder sqlString = new StringBuilder();
+		sqlString.append("select ").append(columnNames).append(" from ").append(mySQLTableName.value())
+			.append(" where ").append(primary).append(" = ?");
+		super.retrieveOne(o, sqlString.toString())
+			.onSuccess(s -> {
+
+
+			})
+			.onFailure(promise::fail);
+		return promise.future();
 	}
 
 
