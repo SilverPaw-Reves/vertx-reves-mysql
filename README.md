@@ -20,6 +20,8 @@
 `BaseMysql<T>` 基础查询类,实体操作直接继承此类,提供实体相关基础操作函数  
 `MysqlWrapper` 数据库操作类,提供直接的mysql操作函数
 
+![函数示例](./super.png)
+
 #### 构造函数
 查看 `MySQLConnectOptions connectOptions, PoolOptions poolOptions`
 相关[文档](https://vertx.io/docs/vertx-mysql-client/java/#_configuration)
