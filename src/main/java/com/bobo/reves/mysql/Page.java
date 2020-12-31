@@ -13,27 +13,26 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class Page {
-    public Page() {
-    }
+	/**
+	 * 页码
+	 */
+	private Integer page;
+	/**
+	 * 行数
+	 */
+	private Integer pageSize;
 
-    public Page(Integer page, Integer pageSize) {
-        this.page = page;
-        this.pageSize = pageSize;
-    }
+	public Page() {
+	}
+	public Page(Integer page, Integer pageSize) {
+		this.page = page;
+		this.pageSize = pageSize;
+	}
 
-    /**
-     * 页码
-     */
-    private Integer page;
-    /**
-     * 行数
-     */
-    private Integer pageSize;
-
-    public Integer calcPage() {
-        if (page <= 0) {
-            return 0;
-        }
-        return pageSize * (page - 1);
-    }
+	public Integer calcPage() {
+		if (page <= 0) {
+			return 0;
+		}
+		return pageSize * (page - 1);
+	}
 }

@@ -11,7 +11,6 @@ import com.google.common.reflect.TypeToken;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
@@ -342,14 +341,14 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 		ParameterizedType pt = (ParameterizedType) genericSuperclass;
 		Type actualType = pt.getActualTypeArguments()[0];
 		//T class
-		Class<?> clazz = TypeToken.of(actualType).getRawType();
-		MySQLTableName mySQLTableName = clazz.getAnnotation(MySQLTableName.class);
+		Class<?> aClass = TypeToken.of(actualType).getRawType();
+		MySQLTableName mySQLTableName = aClass.getAnnotation(MySQLTableName.class);
 		if (mySQLTableName == null || StringUtils.isEmpty(mySQLTableName.value())) {
 			return Future.failedFuture("Unknown table name , use MySQLTableName annotation");
 		}
 		String primary = "";
 		StringBuilder columnNames = new StringBuilder();
-		for (Field field : clazz.getDeclaredFields()) {
+		for (Field field : aClass.getDeclaredFields()) {
 			if (StringUtils.isEmpty(primary)) {
 				MySQLId mySQLID = field.getAnnotation(MySQLId.class);
 				if (mySQLID != null) {
@@ -380,11 +379,55 @@ public abstract class BaseMysql<T> extends MysqlWrapper {
 			.append(" where ").append(primary).append(" = ?");
 		super.retrieveOne(o, sqlString.toString())
 			.onSuccess(s -> {
-
-
+				try {
+					T t = (T) aClass.getDeclaredConstructor().newInstance();
+					for (Field field : aClass.getDeclaredFields()) {
+						MySQLColumnName columnNameAnnotation = field.getAnnotation(MySQLColumnName.class);
+						String columnName;
+						if (columnNameAnnotation == null) {
+							columnName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
+						} else {
+							columnName = columnNameAnnotation.value();
+						}
+						if (s.containsKey(columnName)) {
+							field.setAccessible(true);
+							Object columnValue = getColumnValue(s, columnName, field);
+							field.set(t, columnValue);
+						}
+					}
+					promise.complete(t);
+				} catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+					e.printStackTrace();
+					promise.fail(e);
+				}
 			})
 			.onFailure(promise::fail);
 		return promise.future();
+	}
+
+	private Object getColumnValue(JsonObject jsonObject, String columnName, Field field) {
+		if (Integer.class.equals(field.getType())) {
+			return jsonObject.getInteger(columnName);
+		} else if (String.class.equals(field.getType())) {
+			return jsonObject.getString(columnName);
+		} else if (Long.class.equals(field.getType())) {
+			return jsonObject.getLong(columnName);
+		} else if (Boolean.class.equals(field.getType())) {
+			return jsonObject.getBoolean(columnName);
+		} else if (Double.class.equals(field.getType())) {
+			return jsonObject.getDouble(columnName);
+		} else if (Float.class.equals(field.getType())) {
+			return jsonObject.getFloat(columnName);
+		} else if (LocalDateTime.class.equals(field.getType())) {
+			return LocalDateTime.parse(jsonObject.getString(columnName));
+		} else if (LocalDate.class.equals(field.getType())) {
+			return LocalDate.parse(jsonObject.getString(columnName));
+		} else if (LocalTime.class.equals(field.getType())) {
+			return LocalTime.parse(jsonObject.getString(columnName));
+		} else {
+			return jsonObject.getValue(columnName);
+		}
+
 	}
 
 
