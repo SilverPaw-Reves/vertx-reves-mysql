@@ -24,31 +24,35 @@ public class UserInfo {
 		return id;
 	}
 
-	public void setId(Long id) {
+	public UserInfo setId(Long id) {
 		this.id = id;
+		return this;
 	}
 
 	public String getUserName() {
 		return userName;
 	}
 
-	public void setUserName(String userName) {
+	public UserInfo setUserName(String userName) {
 		this.userName = userName;
+		return this;
 	}
 
 	public Integer getUserAge() {
 		return userAge;
 	}
 
-	public void setUserAge(Integer userAge) {
+	public UserInfo setUserAge(Integer userAge) {
 		this.userAge = userAge;
+		return this;
 	}
 
 	public LocalDateTime getCreateTime() {
 		return createTime;
 	}
 
-	public void setCreateTime(LocalDateTime createTime) {
+	public UserInfo setCreateTime(LocalDateTime createTime) {
 		this.createTime = createTime;
+		return this;
 	}
 }

@@ -1,8 +1,5 @@
 package com.bobo.reves.mysql;
 
-import lombok.Data;
-import lombok.experimental.Accessors;
-
 /**
  * page 分页参数对象
  *
@@ -10,8 +7,6 @@ import lombok.experimental.Accessors;
  * @date 2020-12-26 13:31
  * @since 2020/12/26
  **/
-@Data
-@Accessors(chain = true)
 public class Page {
 	/**
 	 * 页码
@@ -24,6 +19,7 @@ public class Page {
 
 	public Page() {
 	}
+
 	public Page(Integer page, Integer pageSize) {
 		this.page = page;
 		this.pageSize = pageSize;
@@ -34,5 +30,23 @@ public class Page {
 			return 0;
 		}
 		return pageSize * (page - 1);
+	}
+
+	public Integer getPage() {
+		return page;
+	}
+
+	public Page setPage(Integer page) {
+		this.page = page;
+		return this;
+	}
+
+	public Integer getPageSize() {
+		return pageSize;
+	}
+
+	public Page setPageSize(Integer pageSize) {
+		this.pageSize = pageSize;
+		return this;
 	}
 }
